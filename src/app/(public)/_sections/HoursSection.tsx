@@ -8,15 +8,13 @@ export default function HoursSection() {
         <h2 className="text-2xl font-black">Hours</h2>
 
         <p className="mt-4 text-brown-700">
-          Placeholder — add opening hours, seasonal changes, and holiday notes.
+          Qualicum Beach Farmers Market
         </p>
 
         <div className="mt-6 rounded-xl border border-brown-200 bg-white px-6 py-4 text-brown-800 shadow-sm">
           <p className="font-semibold">Example:</p>
           <ul className="mt-2 space-y-1 text-sm">
-            <li>Monday – Friday: 7:00am – 2:00pm</li>
-            <li>Saturday: 8:00am – 2:00pm</li>
-            <li>Sunday: Closed</li>
+            <li>Saturday: 8:30am – 12:00pm</li>
           </ul>
         </div>
       </div>

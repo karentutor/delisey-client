@@ -7,8 +7,8 @@ import { Menu, X } from "lucide-react";
 const publicLinks = [
   { href: "/#menu", label: "Menu" },
   { href: "/#hours", label: "Hours" },
-  { href: "/#about", label: "About" },
-  { href: "/#community", label: "Community" },
+  // { href: "/#about", label: "About" },
+  // { href: "/#community", label: "Community" },
   { href: "/#map", label: "Find Us" },
 ];
 
@@ -69,7 +69,7 @@ export default function Navbar() {
 
           {/* ✅ Only Login */}
           <Link
-            href="/auth/login"
+            href="/login"
             onClick={() => setOpen(false)}
             className={buttonLoginClasses}
           >
@@ -114,7 +114,7 @@ export default function Navbar() {
             </Link>
 
             <Link
-              href="/auth/login"
+              href="/login"
               onClick={() => setOpen(false)}
               className="mt-2 rounded-lg border border-cream-100/40 px-3 py-2 text-xs font-semibold text-center text-cream-100/90 hover:text-white hover:border-white"
             >
