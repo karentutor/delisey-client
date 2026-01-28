@@ -1,12 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { backendApi } from '../../../lib/backendApi';
 
-export default function ForgotPasswordPage() {
-  const router = useRouter();
+function ForgotPasswordInner() {
   const searchParams = useSearchParams();
 
   const next = searchParams.get('next') || '/orders';
@@ -44,7 +43,7 @@ export default function ForgotPasswordPage() {
 
             setMsg(res.data?.message || 'If an account exists, a reset link has been sent.');
 
-            // DEV: backend returns resetUrl
+            // DEV ONLY: if your backend returns resetUrl (optional)
             if (res.data?.resetUrl) {
               setResetUrl(String(res.data.resetUrl));
             }
@@ -92,5 +91,20 @@ export default function ForgotPasswordPage() {
         </div>
       </form>
     </main>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-md px-4 py-10">
+          <h1 className="text-2xl font-semibold">Forgot password</h1>
+          <p className="mt-3 text-sm text-black/70">Loading…</p>
+        </main>
+      }
+    >
+      <ForgotPasswordInner />
+    </Suspense>
   );
 }
