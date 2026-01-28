@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { backendApi } from '../../../lib/backendApi';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -20,7 +21,7 @@ export default function LoginPage() {
 
   return (
     <main className="mx-auto max-w-md px-4 py-10">
-      <h1 className="text-2xl font-semibold">Login</h1>
+      <h1 className="text-2xl font-semibold">Create account</h1>
 
       <form
         className="mt-6 space-y-3"
@@ -29,16 +30,22 @@ export default function LoginPage() {
           setMsg(null);
           setLoading(true);
           try {
-            await backendApi.post('/api/auth/login', { email, password });
-            window.dispatchEvent(new Event('delisey-auth-changed'));
+            await backendApi.post('/api/auth/register', { email, name, password });
             router.push(safeNext);
           } catch (err: any) {
-            setMsg(err?.response?.data?.message || 'Login failed.');
+            setMsg(err?.response?.data?.message || 'Registration failed.');
           } finally {
             setLoading(false);
           }
         }}
       >
+        <input
+          className="w-full rounded-lg border px-3 py-2"
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+
         <input
           className="w-full rounded-lg border px-3 py-2"
           placeholder="Email"
@@ -50,7 +57,7 @@ export default function LoginPage() {
 
         <input
           className="w-full rounded-lg border px-3 py-2"
-          placeholder="Password"
+          placeholder="Password (min 8 chars)"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -61,21 +68,17 @@ export default function LoginPage() {
           disabled={loading}
           className="w-full rounded-lg bg-black px-4 py-2 font-semibold text-white disabled:opacity-60"
         >
-          {loading ? 'Logging in…' : 'Login'}
+          {loading ? 'Creating…' : 'Register'}
         </button>
 
         {msg && <p className="text-sm text-red-600">{msg}</p>}
 
-        {/* ✅ Add these links */}
-        <div className="mt-2 flex items-center justify-between text-sm">
-          <Link className="underline" href={`/register?next=${nextEncoded}`}>
-            Create account
+        <p className="mt-2 text-sm text-black/70">
+          Already have an account?{' '}
+          <Link className="underline" href={`/login?next=${nextEncoded}`}>
+            Login
           </Link>
-
-          <Link className="underline" href={`/forgot-password?next=${nextEncoded}`}>
-            Forgot password?
-          </Link>
-        </div>
+        </p>
       </form>
     </main>
   );

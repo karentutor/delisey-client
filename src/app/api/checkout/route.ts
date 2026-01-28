@@ -1,3 +1,4 @@
+//client/src/app/api/checkout/route.ts
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 
@@ -15,6 +16,9 @@ type Body = {
   boxSize: BoxSize;
   donuts: DonutCounts;
   customer?: { name?: string; phone?: string; email?: string };
+
+  // Optional: you can pass your Mongo orderId if you ever want it here later
+  // mongoOrderId?: string;
 };
 
 const DEFAULT_AMOUNT_CENTS: Record<BoxSize, number> = {
@@ -87,12 +91,16 @@ export async function POST(req: Request) {
     );
   }
 
-  const env = (process.env.SQUARE_ENVIRONMENT ?? 'sandbox').toLowerCase();
+  const envRaw = (process.env.SQUARE_ENVIRONMENT ?? 'sandbox').toLowerCase();
+  const environment = envRaw === 'production' ? 'production' : 'sandbox';
+
   const baseUrl =
-    env === 'sandbox' ? 'https://connect.squareupsandbox.com' : 'https://connect.squareup.com';
+    environment === 'sandbox'
+      ? 'https://connect.squareupsandbox.com'
+      : 'https://connect.squareup.com';
 
   const squareVersion = process.env.SQUARE_VERSION ?? '2025-10-16';
-  const currency = normalizeCurrency(process.env.SQUARE_CURRENCY); // CAD for your sandbox location
+  const currency = normalizeCurrency(process.env.SQUARE_CURRENCY);
   const amountCents = parseAmountCents(body.boxSize);
 
   // --- Build note ---
@@ -160,7 +168,13 @@ export async function POST(req: Request) {
     );
   }
 
-  const checkoutUrl = data?.payment_link?.url;
+  // ✅ Extract fields from Square response
+  const paymentLink = data?.payment_link;
+  const checkoutUrl = paymentLink?.url;
+  const longUrl = paymentLink?.long_url;
+  const checkoutId = paymentLink?.id; // payment link id
+  const squareOrderId = paymentLink?.order_id; // order id created by checkout
+
   if (!checkoutUrl) {
     return NextResponse.json(
       { error: 'Square response missing payment_link.url.', square_body: data ?? raw },
@@ -168,5 +182,13 @@ export async function POST(req: Request) {
     );
   }
 
-  return NextResponse.json({ url: checkoutUrl });
+  // ✅ Return everything your client needs to store in Mongo
+  return NextResponse.json({
+    url: checkoutUrl,
+    longUrl,
+    checkoutId,
+    squareOrderId,
+    locationId,
+    environment,
+  });
 }
