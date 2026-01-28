@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { Suspense, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { backendApi } from '../../../lib/backendApi';
 
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -16,7 +16,7 @@ export default function LoginPage() {
 
   const next = searchParams.get('next') || '/orders';
   const safeNext = next.startsWith('/') ? next : '/orders';
-  const nextEncoded = encodeURIComponent(safeNext);
+  const nextEncoded = useMemo(() => encodeURIComponent(safeNext), [safeNext]);
 
   return (
     <main className="mx-auto max-w-md px-4 py-10">
@@ -28,9 +28,13 @@ export default function LoginPage() {
           e.preventDefault();
           setMsg(null);
           setLoading(true);
+
           try {
             await backendApi.post('/api/auth/login', { email, password });
+
+            // ✅ tell navbar to refresh
             window.dispatchEvent(new Event('delisey-auth-changed'));
+
             router.push(safeNext);
           } catch (err: any) {
             setMsg(err?.response?.data?.message || 'Login failed.');
@@ -66,7 +70,6 @@ export default function LoginPage() {
 
         {msg && <p className="text-sm text-red-600">{msg}</p>}
 
-        {/* ✅ Add these links */}
         <div className="mt-2 flex items-center justify-between text-sm">
           <Link className="underline" href={`/register?next=${nextEncoded}`}>
             Create account
@@ -78,5 +81,20 @@ export default function LoginPage() {
         </div>
       </form>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-md px-4 py-10">
+          <h1 className="text-2xl font-semibold">Login</h1>
+          <p className="mt-3 text-sm text-black/70">Loading…</p>
+        </main>
+      }
+    >
+      <LoginInner />
+    </Suspense>
   );
 }
