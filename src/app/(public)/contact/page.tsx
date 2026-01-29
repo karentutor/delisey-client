@@ -45,7 +45,7 @@ export default function ContactPage() {
             setLoading(true);
 
             try {
-              await backendApi.post('/api/contact', { name, email, subject, message });
+              await backendApi.post('/contact', { name, email, subject, message });
 
               setStatus({ type: 'success', message: 'Thanks! Your message has been sent.' });
               setName('');

@@ -31,7 +31,7 @@ function RegisterInner() {
           setLoading(true);
 
           try {
-            await backendApi.post('/api/auth/register', {
+            await backendApi.post('/auth/register', {
               email,
               name,
               password,

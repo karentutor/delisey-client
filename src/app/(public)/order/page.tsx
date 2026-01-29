@@ -148,7 +148,7 @@ export default function OrderPage() {
     (async () => {
       try {
         // If this succeeds, user is logged in (cookie present + valid)
-        await ordersApi.get('/api/auth/me');
+        await ordersApi.get('/auth/me');
         if (mounted) setAuthChecked(true);
       } catch (err) {
         const httpStatus = axios.isAxiosError(err) ? err.response?.status : undefined;

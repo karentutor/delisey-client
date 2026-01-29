@@ -85,7 +85,7 @@ type CreateOrderResponse = {
   createdAt: string;
 };
 
-// ✅ What your Next.js /api/checkout should return (recommended)
+// ✅ What your Next.js /checkout should return (recommended)
 type SquareCheckoutResponse = {
   url?: string;
   longUrl?: string;
@@ -148,7 +148,7 @@ export default function OrderPage() {
     (async () => {
       try {
         // If this succeeds, user is logged in (cookie present + valid)
-        await ordersApi.get('/api/auth/me');
+        await ordersApi.get('/auth/me');
         if (mounted) setAuthChecked(true);
       } catch (err) {
         const httpStatus = axios.isAxiosError(err) ? err.response?.status : undefined;
@@ -223,7 +223,7 @@ export default function OrderPage() {
     let orderId: string | null = null;
 
     try {
-      const createRes = await ordersApi.post<CreateOrderResponse>('/api/orders', {
+      const createRes = await ordersApi.post<CreateOrderResponse>('/orders', {
         boxSize: values.boxSize,
         donuts: values.donuts,
         customer: {
@@ -250,7 +250,7 @@ export default function OrderPage() {
     //    If it returns a URL, patch order + redirect.
     try {
       const squareRes = await axios.post<SquareCheckoutResponse>(
-        '/api/checkout',
+        '/checkout',
         {
           boxSize: values.boxSize,
           donuts: values.donuts,
@@ -271,7 +271,7 @@ export default function OrderPage() {
         // ✅ Patch order with checkout + Square metadata
         // Best effort: don't block redirect if patch fails
         try {
-          await ordersApi.patch(`/api/orders/${orderId}/checkout`, {
+          await ordersApi.patch(`/orders/${orderId}/checkout`, {
             checkout: { method: 'checkout_api', url },
             square: {
               checkoutId: squareRes.data.checkoutId,
@@ -303,7 +303,7 @@ export default function OrderPage() {
 
     // Patch order to reflect fallback used (best effort)
     try {
-      await ordersApi.patch(`/api/orders/${orderId}/checkout`, {
+      await ordersApi.patch(`/orders/${orderId}/checkout`, {
         checkout: { method: 'payment_link', url: fallbackLink },
       });
     } catch {

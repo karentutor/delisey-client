@@ -55,7 +55,7 @@ function ResetPasswordInner() {
           setLoading(true);
 
           try {
-            await backendApi.post('/api/auth/reset-password', {
+            await backendApi.post('/auth/reset-password', {
               token,
               password,
             });

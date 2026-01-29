@@ -36,7 +36,7 @@ function ForgotPasswordInner() {
           setLoading(true);
 
           try {
-            const res = await backendApi.post('/api/auth/forgot-password', {
+            const res = await backendApi.post('/auth/forgot-password', {
               email: email.trim(),
               next: safeNext,
             });

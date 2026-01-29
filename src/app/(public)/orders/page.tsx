@@ -23,10 +23,10 @@ export default function OrdersPage() {
     (async () => {
       setMsg(null);
       try {
-        const meRes = await backendApi.get('/api/auth/me');
+        const meRes = await backendApi.get('/auth/me');
         setMe(meRes.data.user);
 
-        const ordersRes = await backendApi.get('/api/orders/me');
+        const ordersRes = await backendApi.get('/orders/me');
         setOrders(ordersRes.data);
       } catch (err: any) {
         setMsg(err?.response?.data?.message || 'Please login to view orders.');
@@ -49,7 +49,7 @@ export default function OrdersPage() {
           <button
             className="rounded-lg border px-3 py-1.5 text-sm"
             onClick={async () => {
-              await backendApi.post('/api/auth/logout');
+              await backendApi.post('/auth/logout');
               setMe(null);
               setOrders([]);
               setMsg('Logged out.');

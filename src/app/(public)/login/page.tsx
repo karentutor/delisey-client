@@ -30,7 +30,7 @@ function LoginInner() {
           setLoading(true);
 
           try {
-            await backendApi.post('/api/auth/login', { email, password });
+            await backendApi.post('/auth/login', { email, password });
 
             // ✅ tell navbar to refresh
             window.dispatchEvent(new Event('delisey-auth-changed'));

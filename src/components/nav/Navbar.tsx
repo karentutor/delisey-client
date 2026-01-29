@@ -36,7 +36,7 @@ export default function Navbar() {
 
   async function fetchMe() {
     try {
-      const res = await backendApi.get('/api/auth/me');
+      const res = await backendApi.get('/auth/me');
       setMe(res.data?.user || null);
     } catch {
       setMe(null);
@@ -82,7 +82,7 @@ export default function Navbar() {
 
   async function handleLogout() {
     try {
-      await backendApi.post('/api/auth/logout');
+      await backendApi.post('/auth/logout');
     } catch {
       // ignore
     } finally {
