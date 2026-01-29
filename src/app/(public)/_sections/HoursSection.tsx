@@ -8,11 +8,11 @@ export default function HoursSection() {
         <h2 className="text-2xl font-black">Hours</h2>
 
         <p className="mt-4 text-brown-700">
-          Qualicum Beach Farmers Market
+          Qualicum Beach Farmers Market Hours
         </p>
 
         <div className="mt-6 rounded-xl border border-brown-200 bg-white px-6 py-4 text-brown-800 shadow-sm">
-          <p className="font-semibold">Hours:</p>
+          <p className="font-semibold">Open:</p>
           <ul className="mt-2 space-y-1 text-sm">
             <li>Saturday: 8:30am – 12:00pm</li>
           </ul>
