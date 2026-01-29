@@ -1,18 +1,18 @@
 'use client';
 
 import Link from 'next/link';
+import { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
 import { backendApi } from '../../../lib/backendApi';
 
-export default function ResetPasswordPage() {
+function ResetPasswordInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const token = searchParams.get('token') || '';
   const next = searchParams.get('next') || '/orders';
   const safeNext = next.startsWith('/') ? next : '/orders';
-  const nextEncoded = encodeURIComponent(safeNext);
+  const nextEncoded = useMemo(() => encodeURIComponent(safeNext), [safeNext]);
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -26,13 +26,14 @@ export default function ResetPasswordPage() {
     return null;
   }, [password, confirm]);
 
-  const canSubmit = token && !pwError && password.length >= 8 && password === confirm;
+  const canSubmit = Boolean(token) && !pwError && password.length >= 8 && password === confirm;
 
   if (!token) {
     return (
       <main className="mx-auto max-w-md px-4 py-10">
         <h1 className="text-2xl font-semibold">Reset password</h1>
         <p className="mt-3 text-sm text-red-600">Missing reset token.</p>
+
         <div className="mt-6 text-sm">
           <Link className="underline" href={`/forgot-password?next=${nextEncoded}`}>
             Request a new link
@@ -58,7 +59,9 @@ export default function ResetPasswordPage() {
               token,
               password,
             });
-            window.dispatchEvent(new Event('delisey-auth-changed')); 
+
+            // ✅ tell navbar to refresh (since reset logs user in)
+            window.dispatchEvent(new Event('delisey-auth-changed'));
 
             // ✅ backend sets auth cookie on success
             router.push(safeNext);
@@ -104,5 +107,20 @@ export default function ResetPasswordPage() {
         </div>
       </form>
     </main>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-md px-4 py-10">
+          <h1 className="text-2xl font-semibold">Reset password</h1>
+          <p className="mt-3 text-sm text-black/70">Loading…</p>
+        </main>
+      }
+    >
+      <ResetPasswordInner />
+    </Suspense>
   );
 }
