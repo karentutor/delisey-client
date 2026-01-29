@@ -110,13 +110,16 @@ export default function Navbar() {
     'ml-3 inline-flex items-center rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white ' +
     'hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70';
 
-  const dropdownPanelClasses =
-    'absolute right-0 mt-2 w-56 rounded-xl border border-cream-100/15 bg-brown-950/95 shadow-xl ' +
-    'backdrop-blur-sm overflow-hidden';
+const dropdownPanelClasses =
+  'absolute right-0 mt-2 w-56 rounded-xl border border-cream-100/15 bg-brown-950/95 text-white shadow-xl ' +
+  'backdrop-blur-sm overflow-hidden';
 
-  const dropdownItemClasses =
-    'block w-full text-left px-4 py-2.5 text-sm font-semibold text-cream-100/90 hover:text-white hover:bg-white/5 ' +
-    'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70';
+
+const dropdownItemClasses =
+  'block w-full text-left px-4 py-2.5 text-sm font-semibold text-cream-100 no-underline ' +
+  'hover:text-white hover:bg-white/10 ' +
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70';
+
 
   const dropdownMetaClasses = 'px-4 py-3 border-b border-cream-100/10';
 
@@ -192,14 +195,15 @@ export default function Navbar() {
                     ) : null}
                   </div>
 
-                  <Link
-                    href="/orders"
-                    onClick={() => setUserMenuOpen(false)}
-                    className={dropdownItemClasses}
-                    role="menuitem"
-                  >
-                    My Orders
-                  </Link>
+<Link
+  href="/orders"
+  onClick={() => setUserMenuOpen(false)}
+  className={`${dropdownItemClasses} text-cream-100`}
+  role="menuitem"
+>
+  My Orders
+</Link>
+
 
                   <Link
                     href="/change-password"
