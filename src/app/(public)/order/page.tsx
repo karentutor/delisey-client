@@ -1,3 +1,4 @@
+// client/src/app/(public)/order/page.tsx
 'use client';
 
 import axios from 'axios';
@@ -115,6 +116,8 @@ export default function OrderPage() {
     | { state: 'info'; message: string }
   >({ state: 'idle' });
 
+  const [manualCheckoutUrl, setManualCheckoutUrl] = useState<string | null>(null);
+
   const [mixAttempted, setMixAttempted] = useState(false);
   const [contactAttempted, setContactAttempted] = useState(false);
 
@@ -146,13 +149,28 @@ export default function OrderPage() {
 
     const currentName = getValues('customer.name');
     const currentEmail = getValues('customer.email');
+    const currentPhone = getValues('customer.phone');
 
-    if (!currentName?.trim() && me.name?.trim()) {
-      setValue('customer.name', me.name.trim(), { shouldDirty: false, shouldTouch: false });
+    if (!currentName?.trim() && (me as any)?.name?.trim()) {
+      setValue('customer.name', String((me as any).name).trim(), {
+        shouldDirty: false,
+        shouldTouch: false,
+      });
     }
 
-    if (!currentEmail?.trim() && me.email?.trim()) {
-      setValue('customer.email', me.email.trim(), { shouldDirty: false, shouldTouch: false });
+    if (!currentEmail?.trim() && (me as any)?.email?.trim()) {
+      setValue('customer.email', String((me as any).email).trim(), {
+        shouldDirty: false,
+        shouldTouch: false,
+      });
+    }
+
+    // Optional: if your /auth/me later includes phone, this will prefill too.
+    if (!currentPhone?.trim() && (me as any)?.phone?.trim()) {
+      setValue('customer.phone', String((me as any).phone).trim(), {
+        shouldDirty: false,
+        shouldTouch: false,
+      });
     }
   }, [me, getValues, setValue]);
 
@@ -172,6 +190,7 @@ export default function OrderPage() {
     setValue('donuts', { chocolate: 0, glazed: 0, plain: 0 }, { shouldDirty: true });
     setMixAttempted(false);
     setStatus({ state: 'idle' });
+    setManualCheckoutUrl(null);
   }
 
   function clampForKey(key: keyof DonutCounts, raw: unknown) {
@@ -194,6 +213,7 @@ export default function OrderPage() {
 
   async function startCheckout(values: FormValues) {
     setStatus({ state: 'idle' });
+    setManualCheckoutUrl(null);
 
     // 0) Must match mix exactly
     const selected = total(values.donuts);
@@ -229,10 +249,12 @@ export default function OrderPage() {
       return;
     }
 
-    // 2) Try Next.js Square Checkout route
+    // 2) Try Next.js Square Checkout route (client → Next route → Square)
+    // ✅ You said: no /api paths — so this calls "/checkout"
+    // If your route is still in app/api/checkout, change this back to "/api/checkout".
     try {
       const squareRes = await axios.post<SquareCheckoutResponse>(
-        '/api/checkout',
+        '/checkout',
         {
           boxSize: values.boxSize,
           donuts: values.donuts,
@@ -248,7 +270,7 @@ export default function OrderPage() {
       const url = squareRes.data?.url;
 
       if (url) {
-        // Patch order with checkout + Square metadata (best effort)
+        // ✅ IMPORTANT: Do NOT redirect unless patch succeeds (consistency before real money)
         try {
           await backendApi.patch(`/orders/${orderId}/checkout`, {
             checkout: { method: 'checkout_api', url },
@@ -258,16 +280,27 @@ export default function OrderPage() {
               locationId: squareRes.data.locationId,
               environment: squareRes.data.environment,
             },
+            // ✅ makes list clearer immediately (and also works with your backend validation)
+            status: 'checkout_started',
           });
-        } catch {
-          // ignore patch failure
+        } catch (err) {
+          console.warn('Checkout created but failed to save to order:', err);
+          setManualCheckoutUrl(url);
+          setStatus({
+            state: 'error',
+            message:
+              'We created a Square checkout link, but could not save it to your order. Please click “Continue to payment” below.',
+          });
+          return;
         }
 
+        // ✅ redirect ONLY after the patch succeeds
         window.location.href = url;
         return;
       }
-    } catch {
-      // fall through
+    } catch (err) {
+      // fall through to fallback
+      console.warn('Square checkout route failed, using fallback link:', err);
     }
 
     // 3) Fallback: static payment links + copy note
@@ -280,12 +313,21 @@ export default function OrderPage() {
       return;
     }
 
+    // ✅ Same consistency rule for fallback: patch first, then open
     try {
       await backendApi.patch(`/orders/${orderId}/checkout`, {
         checkout: { method: 'payment_link', url: fallbackLink },
+        status: 'checkout_started',
       });
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('Fallback checkout link exists but failed to save to order:', err);
+      setManualCheckoutUrl(fallbackLink);
+      setStatus({
+        state: 'error',
+        message:
+          'We have a checkout link, but could not save it to your order. Please click “Continue to payment” below.',
+      });
+      return;
     }
 
     const note = buildOrderNote(values.boxSize, values.donuts, values.customer);
@@ -345,7 +387,7 @@ export default function OrderPage() {
     <main className="mx-auto w-full max-w-3xl px-4 py-10">
       <h1 className="text-3xl font-semibold tracking-tight">Order Donuts Online</h1>
       <p className="mt-1 text-sm text-black/70">
-        Pick a box size (2/4/6), choose your mix, then pay with Square (Sandbox).
+        Pick a box size (2/4/6), choose your mix, then pay with Square.
       </p>
 
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -369,6 +411,7 @@ export default function OrderPage() {
                         setValue('donuts', { chocolate: 0, glazed: 0, plain: 0 }, { shouldDirty: true });
                         setMixAttempted(false);
                         setStatus({ state: 'idle' });
+                        setManualCheckoutUrl(null);
                       }}
                     />
                     <span className="text-sm">
@@ -572,11 +615,36 @@ export default function OrderPage() {
             disabled={status.state === 'loading'}
             className="inline-flex w-full items-center justify-center rounded-xl border border-black/20 bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {status.state === 'loading' ? 'Starting Square checkout…' : 'Checkout with Square'}
+            {status.state === 'loading' ? 'Starting checkout…' : 'Checkout'}
           </button>
 
           {status.state === 'error' && <p className="mt-3 text-sm text-red-600">{status.message}</p>}
           {status.state === 'info' && <p className="mt-3 text-sm text-black/80">{status.message}</p>}
+
+          {/* ✅ If we created a checkout link but could not patch, let user proceed manually */}
+          {manualCheckoutUrl && (
+            <div className="mt-3 rounded-lg border border-black/10 bg-white p-3 text-sm">
+              <div className="font-semibold">Continue to payment</div>
+              <a
+                className="mt-2 block break-words underline"
+                href={manualCheckoutUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {manualCheckoutUrl}
+              </a>
+
+              <button
+                type="button"
+                className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-black px-4 py-2 font-semibold text-white"
+                onClick={() => {
+                  window.location.href = manualCheckoutUrl;
+                }}
+              >
+                Continue to payment
+              </button>
+            </div>
+          )}
 
           {!ready && status.state !== 'loading' && !mixHasError && (
             <p className="mt-2 text-xs text-black/60">
