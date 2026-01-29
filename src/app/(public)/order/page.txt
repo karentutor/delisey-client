@@ -85,7 +85,7 @@ type CreateOrderResponse = {
   createdAt: string;
 };
 
-// ✅ What your Next.js /checkout should return (recommended)
+// ✅ What your Next.js /api/checkout should return (recommended)
 type SquareCheckoutResponse = {
   url?: string;
   longUrl?: string;
