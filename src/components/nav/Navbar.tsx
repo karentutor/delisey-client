@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Menu, X, User, ChevronDown } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { backendApi } from '../../lib/backendApi'; 
+import { backendApi } from '../../lib/backendApi'; // keep your path as-is
 
 const AUTH_CHANGED_EVENT = 'delisey-auth-changed';
 
@@ -12,9 +12,8 @@ const publicLinks = [
   { href: '/#menu', label: 'Menu' },
   { href: '/#hours', label: 'Hours' },
   { href: '/#map', label: 'Find Us' },
-  { href: '/contact', label: 'Contact' }, 
+  { href: '/contact', label: 'Contact' },
 ];
-
 
 type Me = { email: string; name?: string };
 
@@ -36,6 +35,7 @@ export default function Navbar() {
 
   async function fetchMe() {
     try {
+      // NOTE: you told me to ignore API prefix details
       const res = await backendApi.get('/auth/me');
       setMe(res.data?.user || null);
     } catch {
@@ -82,6 +82,7 @@ export default function Navbar() {
 
   async function handleLogout() {
     try {
+      // NOTE: you told me to ignore API prefix details
       await backendApi.post('/auth/logout');
     } catch {
       // ignore
@@ -93,6 +94,8 @@ export default function Navbar() {
       router.push('/');
     }
   }
+
+  // ===== Styles =====
 
   const navClasses =
     'sticky top-0 inset-x-0 z-50 bg-brown-900/95 border-b border-cream-100/10';
@@ -110,18 +113,22 @@ export default function Navbar() {
     'ml-3 inline-flex items-center rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white ' +
     'hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70';
 
-const dropdownPanelClasses =
-  'absolute right-0 mt-2 w-56 rounded-xl border border-cream-100/15 bg-brown-950/95 text-white shadow-xl ' +
-  'backdrop-blur-sm overflow-hidden';
+  /**
+   * ✅ IMPORTANT FIX:
+   * Use a guaranteed Tailwind color for the dropdown background.
+   * If `bg-brown-950/95` isn't defined in your Tailwind theme,
+   * Tailwind will generate no CSS → dropdown becomes transparent → text disappears.
+   */
+  const dropdownPanelClasses =
+    'absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl ' +
+    'border border-white/10 bg-neutral-950/95 text-white shadow-xl backdrop-blur-sm';
 
+  const dropdownMetaClasses = 'px-4 py-3 border-b border-white/10';
 
-const dropdownItemClasses =
-  'block w-full text-left px-4 py-2.5 text-sm font-semibold text-cream-100 no-underline ' +
-  'hover:text-white hover:bg-white/10 ' +
-  'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70';
-
-
-  const dropdownMetaClasses = 'px-4 py-3 border-b border-cream-100/10';
+  const dropdownItemClasses =
+    'block w-full px-4 py-2.5 text-left text-sm font-semibold text-white no-underline ' +
+    'hover:bg-white/10 hover:text-white ' +
+    'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70';
 
   return (
     <nav className={navClasses} role="banner">
@@ -177,33 +184,30 @@ const dropdownItemClasses =
                 className={buttonAuthClasses}
               >
                 <User className="h-4 w-4" />
-                <span className="max-w-[140px] truncate">
-                  {me.name?.trim() || me.email}
-                </span>
+                <span className="max-w-[140px] truncate">{me.name?.trim() || me.email}</span>
                 <ChevronDown className="h-4 w-4 opacity-80" />
               </button>
 
               {userMenuOpen && (
                 <div className={dropdownPanelClasses} role="menu" aria-label="User menu">
                   <div className={dropdownMetaClasses}>
-                    <div className="text-xs font-semibold text-cream-100/70">Signed in as</div>
+                    <div className="text-xs font-semibold text-white/70">Signed in as</div>
                     <div className="text-sm font-bold text-white truncate">
                       {me.name?.trim() || me.email}
                     </div>
                     {me.name?.trim() ? (
-                      <div className="text-xs text-cream-100/70 truncate">{me.email}</div>
+                      <div className="text-xs text-white/70 truncate">{me.email}</div>
                     ) : null}
                   </div>
 
-<Link
-  href="/orders"
-  onClick={() => setUserMenuOpen(false)}
-  className={`${dropdownItemClasses} text-cream-100`}
-  role="menuitem"
->
-  My Orders
-</Link>
-
+                  <Link
+                    href="/orders"
+                    onClick={() => setUserMenuOpen(false)}
+                    className={dropdownItemClasses}
+                    role="menuitem"
+                  >
+                    My Orders
+                  </Link>
 
                   <Link
                     href="/change-password"
