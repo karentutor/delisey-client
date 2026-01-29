@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { Suspense, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { backendApi } from '../../../lib/backendApi';
 
-export default function RegisterPage() {
+function RegisterInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -17,7 +17,7 @@ export default function RegisterPage() {
 
   const next = searchParams.get('next') || '/orders';
   const safeNext = next.startsWith('/') ? next : '/orders';
-  const nextEncoded = encodeURIComponent(safeNext);
+  const nextEncoded = useMemo(() => encodeURIComponent(safeNext), [safeNext]);
 
   return (
     <main className="mx-auto max-w-md px-4 py-10">
@@ -29,8 +29,17 @@ export default function RegisterPage() {
           e.preventDefault();
           setMsg(null);
           setLoading(true);
+
           try {
-            await backendApi.post('/api/auth/register', { email, name, password });
+            await backendApi.post('/api/auth/register', {
+              email,
+              name,
+              password,
+            });
+
+            // ✅ tell navbar to refresh
+            window.dispatchEvent(new Event('delisey-auth-changed'));
+
             router.push(safeNext);
           } catch (err: any) {
             setMsg(err?.response?.data?.message || 'Registration failed.');
@@ -81,5 +90,20 @@ export default function RegisterPage() {
         </p>
       </form>
     </main>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-md px-4 py-10">
+          <h1 className="text-2xl font-semibold">Create account</h1>
+          <p className="mt-3 text-sm text-black/70">Loading…</p>
+        </main>
+      }
+    >
+      <RegisterInner />
+    </Suspense>
   );
 }
