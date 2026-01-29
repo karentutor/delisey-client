@@ -12,7 +12,7 @@ const publicLinks = [
   { href: '/#menu', label: 'Menu' },
   { href: '/#hours', label: 'Hours' },
   { href: '/#map', label: 'Find Us' },
-  { href: '/contact', label: 'Contact' },
+  { href: '/#contact', label: 'Contact' },
 ];
 
 type Me = { email: string; name?: string };
