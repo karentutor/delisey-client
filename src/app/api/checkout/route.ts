@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 
 export const runtime = 'nodejs';
 
+
 type BoxSize = 2 | 4 | 6;
 
 type DonutCounts = {
@@ -53,6 +54,10 @@ function parseAmountCents(boxSize: BoxSize): number {
 export async function POST(req: Request) {
   // --- Parse request body ---
   let body: Body;
+
+  console.log('[checkout] NODE_ENV=', process.env.NODE_ENV);
+console.log('[checkout] SQUARE_ENVIRONMENT=', process.env.SQUARE_ENVIRONMENT);
+
   try {
     body = (await req.json()) as Body;
   } catch {

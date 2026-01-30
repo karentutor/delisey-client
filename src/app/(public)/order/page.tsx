@@ -1,4 +1,3 @@
-// client/src/app/(public)/order/page.tsx
 'use client';
 
 import axios from 'axios';
@@ -34,7 +33,8 @@ const BOXES: { size: BoxSize; priceLabel: string }[] = [
 ];
 
 function toNonNegInt(v: unknown) {
-  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number.parseInt(v, 10) : NaN;
+  const n =
+    typeof v === 'number' ? v : typeof v === 'string' ? Number.parseInt(v, 10) : NaN;
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.floor(n));
 }
@@ -74,19 +74,13 @@ async function copyToClipboard(text: string) {
   }
 }
 
-type CreateOrderResponse = {
-  id: string;
-  status: string;
-  createdAt: string;
-};
-
-type SquareCheckoutResponse = {
-  url?: string;
-  longUrl?: string;
-  checkoutId?: string; // payment_link.id
-  squareOrderId?: string; // payment_link.order_id
-  locationId?: string;
-  environment?: 'sandbox' | 'production';
+type CheckoutResponse = {
+  ok: boolean;
+  orderId?: string;
+  status?: string;
+  checkoutUrl?: string;
+  guestToken?: string;
+  message?: string;
 };
 
 export default function OrderPage() {
@@ -136,41 +130,19 @@ export default function OrderPage() {
     contactAttempted &&
     Boolean(errors.customer?.name || errors.customer?.phone || errors.customer?.email);
 
-  // ✅ If logged out, redirect to login once we know auth state
-  useEffect(() => {
-    if (!authChecked) return;
-    if (authError) return; // don’t redirect when backend is down
-    if (!me) router.replace('/login?next=/order');
-  }, [authChecked, authError, me, router]);
-
   // ✅ Prefill from me (only if blank — user can still edit)
   useEffect(() => {
     if (!me) return;
 
     const currentName = getValues('customer.name');
     const currentEmail = getValues('customer.email');
-    const currentPhone = getValues('customer.phone');
 
-    if (!currentName?.trim() && (me as any)?.name?.trim()) {
-      setValue('customer.name', String((me as any).name).trim(), {
-        shouldDirty: false,
-        shouldTouch: false,
-      });
+    if (!currentName?.trim() && me.name?.trim()) {
+      setValue('customer.name', me.name.trim(), { shouldDirty: false, shouldTouch: false });
     }
 
-    if (!currentEmail?.trim() && (me as any)?.email?.trim()) {
-      setValue('customer.email', String((me as any).email).trim(), {
-        shouldDirty: false,
-        shouldTouch: false,
-      });
-    }
-
-    // Optional: if your /auth/me later includes phone, this will prefill too.
-    if (!currentPhone?.trim() && (me as any)?.phone?.trim()) {
-      setValue('customer.phone', String((me as any).phone).trim(), {
-        shouldDirty: false,
-        shouldTouch: false,
-      });
+    if (!currentEmail?.trim() && me.email?.trim()) {
+      setValue('customer.email', me.email.trim(), { shouldDirty: false, shouldTouch: false });
     }
   }, [me, getValues, setValue]);
 
@@ -178,13 +150,6 @@ export default function OrderPage() {
     () => buildOrderNote(boxSize, donuts, customer),
     [boxSize, donuts, customer]
   );
-
-  const fallbackLink =
-    boxSize === 2
-      ? process.env.NEXT_PUBLIC_SQUARE_PAYMENT_LINK_BOX2
-      : boxSize === 4
-        ? process.env.NEXT_PUBLIC_SQUARE_PAYMENT_LINK_BOX4
-        : process.env.NEXT_PUBLIC_SQUARE_PAYMENT_LINK_BOX6;
 
   function resetMix() {
     setValue('donuts', { chocolate: 0, glazed: 0, plain: 0 }, { shouldDirty: true });
@@ -215,18 +180,15 @@ export default function OrderPage() {
     setStatus({ state: 'idle' });
     setManualCheckoutUrl(null);
 
-    // 0) Must match mix exactly
+    // Must match mix exactly
     const selected = total(values.donuts);
     const remainingLocal = values.boxSize - selected;
     if (remainingLocal !== 0) return;
 
     setStatus({ state: 'loading' });
 
-    // 1) Create order in Mongo
-    let orderId: string | null = null;
-
     try {
-      const createRes = await backendApi.post<CreateOrderResponse>('/orders', {
+      const res = await backendApi.post<CheckoutResponse>('/orders/checkout', {
         boxSize: values.boxSize,
         donuts: values.donuts,
         customer: {
@@ -236,111 +198,42 @@ export default function OrderPage() {
         },
       });
 
-      orderId = createRes.data?.id;
-      if (!orderId) {
-        setStatus({ state: 'error', message: 'Could not create order record. Please try again.' });
+      const data = res.data || {};
+      const url = data.checkoutUrl;
+
+      // If guest, keep token around for later guest flows (optional)
+      if (data.guestToken && data.orderId) {
+        sessionStorage.setItem(`delisey_guest_token:${data.orderId}`, data.guestToken);
+      }
+
+      if (!url) {
+        setStatus({
+          state: 'error',
+          message: data.message || 'Checkout created but no checkoutUrl returned. Please try again.',
+        });
         return;
       }
-    } catch (err) {
-      setStatus({
-        state: 'error',
-        message: axiosErrorMessage(err, 'Could not save your order. Please try again.'),
-      });
-      return;
-    }
 
-    // 2) Try Next.js Square Checkout route (client → Next route → Square)
-    // ✅ You said: no /api paths — so this calls "/checkout"
-    // If your route is still in app/api/checkout, change this back to "/api/checkout".
-    try {
-      const squareRes = await axios.post<SquareCheckoutResponse>(
-        '/checkout',
-        {
-          boxSize: values.boxSize,
-          donuts: values.donuts,
-          customer: {
-            name: values.customer.name.trim() || undefined,
-            phone: values.customer.phone.trim() || undefined,
-            email: values.customer.email.trim() || undefined,
-          },
-        },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-
-      const url = squareRes.data?.url;
-
-      if (url) {
-        // ✅ IMPORTANT: Do NOT redirect unless patch succeeds (consistency before real money)
-        try {
-          await backendApi.patch(`/orders/${orderId}/checkout`, {
-            checkout: { method: 'checkout_api', url },
-            square: {
-              checkoutId: squareRes.data.checkoutId,
-              squareOrderId: squareRes.data.squareOrderId,
-              locationId: squareRes.data.locationId,
-              environment: squareRes.data.environment,
-            },
-            // ✅ makes list clearer immediately (and also works with your backend validation)
-            status: 'checkout_started',
-          });
-        } catch (err) {
-          console.warn('Checkout created but failed to save to order:', err);
-          setManualCheckoutUrl(url);
-          setStatus({
-            state: 'error',
-            message:
-              'We created a Square checkout link, but could not save it to your order. Please click “Continue to payment” below.',
-          });
-          return;
-        }
-
-        // ✅ redirect ONLY after the patch succeeds
-        window.location.href = url;
+      // If backend says it couldn't store but has a link, let user proceed manually.
+      if (data.ok === false) {
+        setManualCheckoutUrl(url);
+        setStatus({
+          state: 'error',
+          message:
+            data.message ||
+            'We created a checkout link, but could not save it to your order. Please click “Continue to payment” below.',
+        });
         return;
       }
-    } catch (err) {
-      // fall through to fallback
-      console.warn('Square checkout route failed, using fallback link:', err);
-    }
 
-    // 3) Fallback: static payment links + copy note
-    if (!fallbackLink) {
+      // ✅ success: redirect
+      window.location.href = url;
+    } catch (err) {
       setStatus({
         state: 'error',
-        message:
-          'Square fallback links are not set. Add NEXT_PUBLIC_SQUARE_PAYMENT_LINK_BOX2/BOX4/BOX6 OR configure server-side Square API vars.',
+        message: axiosErrorMessage(err, 'Checkout failed. Please try again.'),
       });
-      return;
     }
-
-    // ✅ Same consistency rule for fallback: patch first, then open
-    try {
-      await backendApi.patch(`/orders/${orderId}/checkout`, {
-        checkout: { method: 'payment_link', url: fallbackLink },
-        status: 'checkout_started',
-      });
-    } catch (err) {
-      console.warn('Fallback checkout link exists but failed to save to order:', err);
-      setManualCheckoutUrl(fallbackLink);
-      setStatus({
-        state: 'error',
-        message:
-          'We have a checkout link, but could not save it to your order. Please click “Continue to payment” below.',
-      });
-      return;
-    }
-
-    const note = buildOrderNote(values.boxSize, values.donuts, values.customer);
-    const copied = await copyToClipboard(note);
-
-    window.open(fallbackLink, '_blank', 'noopener,noreferrer');
-
-    setStatus({
-      state: 'info',
-      message: copied
-        ? 'Opened Square checkout in a new tab. Your donut mix was copied — paste it into any “note” field you see during checkout.'
-        : 'Opened Square checkout in a new tab. Please copy the donut mix shown on this page and include it in checkout notes (if shown).',
-    });
   }
 
   const onSubmit = handleSubmit(
@@ -362,11 +255,12 @@ export default function OrderPage() {
   if (!authChecked) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-10">
-        <p className="text-sm text-black/70">Checking login…</p>
+        <p className="text-sm text-black/70">Loading…</p>
       </main>
     );
   }
 
+  // If backend is down you can’t checkout anyway (checkout is created server-side)
   if (authError) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-10">
@@ -375,20 +269,35 @@ export default function OrderPage() {
     );
   }
 
-  if (!me) {
-    return (
-      <main className="mx-auto w-full max-w-3xl px-4 py-10">
-        <p className="text-sm text-black/70">Redirecting to login…</p>
-      </main>
-    );
-  }
-
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10">
       <h1 className="text-3xl font-semibold tracking-tight">Order Donuts Online</h1>
       <p className="mt-1 text-sm text-black/70">
-        Pick a box size (2/4/6), choose your mix, then pay with Square.
+        Pick a box size (2/4/6), choose your mix, then checkout.
       </p>
+
+      {/* Login optional */}
+      <div className="mt-4 rounded-xl border border-black/10 bg-white p-4 text-sm">
+        {me ? (
+          <p className="text-black/70">
+            Signed in as <span className="font-semibold text-black">{me.email}</span>
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-black/70">
+              You’re checking out as a <span className="font-semibold text-black">guest</span>.
+              Login to save orders.
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push('/login?next=/order')}
+              className="rounded-lg border border-black/20 px-3 py-2 text-xs font-semibold"
+            >
+              Login / Register
+            </button>
+          </div>
+        )}
+      </div>
 
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         {/* 1) Box size */}
@@ -580,12 +489,12 @@ export default function OrderPage() {
 
         {/* Order note */}
         <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
-          <h2 className="text-base font-semibold">Order note (what gets sent)</h2>
+          <h2 className="text-base font-semibold">Order note</h2>
 
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-lg border border-black/20 bg-white px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-lg border border-black/20 bg-white px-4 py-2 text-sm font-medium hover:bg-black/5"
               onClick={async () => {
                 const ok = await copyToClipboard(orderNote);
                 setStatus({ state: 'info', message: ok ? 'Copied order note.' : 'Copy failed.' });
@@ -596,7 +505,7 @@ export default function OrderPage() {
 
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-lg border border-black/20 bg-white px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-lg border border-black/20 bg-white px-4 py-2 text-sm font-medium hover:bg-black/5"
               onClick={resetMix}
             >
               Reset mix
@@ -613,7 +522,7 @@ export default function OrderPage() {
           <button
             type="submit"
             disabled={status.state === 'loading'}
-            className="inline-flex w-full items-center justify-center rounded-xl border border-black/20 bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center rounded-xl border border-black/20 bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-black/90 disabled:opacity-60"
           >
             {status.state === 'loading' ? 'Starting checkout…' : 'Checkout'}
           </button>
@@ -621,7 +530,6 @@ export default function OrderPage() {
           {status.state === 'error' && <p className="mt-3 text-sm text-red-600">{status.message}</p>}
           {status.state === 'info' && <p className="mt-3 text-sm text-black/80">{status.message}</p>}
 
-          {/* ✅ If we created a checkout link but could not patch, let user proceed manually */}
           {manualCheckoutUrl && (
             <div className="mt-3 rounded-lg border border-black/10 bg-white p-3 text-sm">
               <div className="font-semibold">Continue to payment</div>
@@ -663,7 +571,6 @@ function DonutRow(props: {
   value: number;
   onChange: (n: number) => void;
   canAdd: boolean;
-
   name?: string;
   inputRef?: (instance: HTMLInputElement | null) => void;
   onBlur?: () => void;
@@ -671,7 +578,7 @@ function DonutRow(props: {
   const { id, label, value, onChange, canAdd, name, inputRef, onBlur } = props;
 
   const smallBtn =
-    'inline-flex h-10 w-11 items-center justify-center rounded-lg border border-black/20 bg-white text-sm font-semibold hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50';
+    'inline-flex h-10 w-11 items-center justify-center rounded-lg border border-black/20 bg-white text-sm font-semibold hover:bg-black/5 disabled:opacity-50';
 
   return (
     <div className="mt-3 grid grid-cols-[1fr_auto_auto_auto] items-center gap-2">
