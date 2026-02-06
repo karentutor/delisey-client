@@ -9,7 +9,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import { backendApi } from '../../../lib/backendApi';
 import { useAuth } from '../../../context/AuthContext';
 
-type BoxSize = 2 | 4 | 6;
+type BoxSize = 1 | 2 | 4 | 6;
 
 type DonutCounts = {
   chocolate: number;
@@ -28,10 +28,12 @@ type FormValues = {
 };
 
 const BOXES: { size: BoxSize; priceLabel: string }[] = [
+  { size: 1, priceLabel: '$3.50' },
   { size: 2, priceLabel: '$7' },
   { size: 4, priceLabel: '$12' },
   { size: 6, priceLabel: '$18' },
 ];
+
 
 function toNonNegInt(v: unknown) {
   const n =

@@ -4,7 +4,8 @@ import axios from 'axios';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { backendApi } from '../lib/backendApi';
 
-export type Me = { email: string; name?: string };
+export type Me = { email: string; name?: string; role?: 'user' | 'admin' };
+
 
 type AuthContextValue = {
   me: Me | null;

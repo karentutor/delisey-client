@@ -15,7 +15,8 @@ const publicLinks = [
   { href: '/#contact', label: 'Contact' },
 ];
 
-type Me = { email: string; name?: string };
+type Me = { email: string; name?: string; role?: 'user' | 'admin' };
+
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);

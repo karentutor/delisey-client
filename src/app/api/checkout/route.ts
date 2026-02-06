@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 export const runtime = 'nodejs';
 
 
-type BoxSize = 2 | 4 | 6;
+type BoxSize = 1 | 2 | 4 | 6;
 
 type DonutCounts = {
   chocolate: number;
@@ -23,6 +23,7 @@ type Body = {
 };
 
 const DEFAULT_AMOUNT_CENTS: Record<BoxSize, number> = {
+  1: 340,
   2: 700,
   4: 1200,
   6: 1800,
